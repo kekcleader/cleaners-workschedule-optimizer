@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cleaners</title>
+<style>
+body, input, select, textarea, button {
+    font-family: Helvetica, Ariel, sans-serif;
+    font-size: 18px;
+}
+body {
+    margin: 0;
+    background: #fff5f3;
+}
+.header {
+    background: #08c;
+    background: linear-gradient(0deg, rgba(12,196,255,1) 0%, rgba(0,112,201,1) 100%);
+    box-shadow: 0 0 15px #08c;
+    color: #fff;
+    padding: 100px;
+    text-align: center;
+}
+.header h1 {
+    font-size: 48px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin: 0;
+}
+.page {
+    padding: 25px;
+}
+button {
+    padding: 15px;
+    min-width: 170px;
+}
+.block {
+    margin: 0 0 40px;
+}
+.schedule th {
+    background: #0cf;
+    background: linear-gradient(0deg, rgba(12,196,255,1) 0%, rgba(0,112,201,1) 100%);
+    color: #fff;
+}
+.schedule,
+.schedule th,
+.schedule td {
+    border: 1px solid #08c;
+}
+.schedule th,
+.schedule td {
+    padding: 6px 10px;
+}
+.schedule td.skills {
+    position: relative;
+    overflow: hidden;
+    min-width: 150px;
+}
+.schedule td.skills .skillset {
+    color: #666;
+    font-size: 9px;
+    position: absolute;
+    bottom: 0;
+    right: 2px;
+}
+.schedule td.number {
+    text-align: right;
+}
+.schedule .separator td {
+    background: #0cf;
+    background: linear-gradient(0deg, rgba(12,196,255,1) 0%, rgba(0,112,201,1) 100%);
+    height: 6px;
+    padding: 0;
+}
+.schedule {
+    border-collapse: collapse;
+    border-width: 2px;
+    margin: 0 auto;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.5);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Cleaners</h1>
+</div>
+<div class="page">
+
+    <div class="control1 block">
+        Please press the Start button in order to start the scheduler.<br><br>
+        <button type="button" name="btn_start" onclick="start_click()">Start scheduling</button>
+    </div>
+
+    <div class="control2 block" style="display:none">
+        The scheduler has started. Please use the Update button after some time to see the results.<br>
+        You can use the Update button multiple times.<br><br>
+        <button type="button" name="btn_update" onclick="update_click()">Update</button>
+    </div>
+
+    <div class="schedule-wrap block" style="display:none">
+        Loading...
+    </div>
+
+</div>
+
+<script>
+function start_click() {
+    start();
+
+    let btn = document.querySelector('[name="btn_start"]');
+    btn.disabled = true;
+    btn.innerText = 'Started';
+
+    let control2 = document.querySelector('.control2');
+    control2.style.display = 'block';
+}
+
+function update_click() {
+    let btn = document.querySelector('[name="btn_update"]');
+    btn.disabled = true;
+    btn.innerText = 'Wait...';
+    setTimeout(function(){
+        btn.disabled = false;
+        btn.innerText = 'Update';
+    }, 2000);
+
+    let schedule_block = document.querySelector('.schedule-wrap');
+    schedule_block.style.display = 'block';
+    update();
+}
+
+function start() {
+    fetch('/solve', {method: 'POST'})
+}
+
+function update() {
+    let block = document.querySelector('.schedule-wrap');
+    block.innerHTML = 'Loading...';
+
+    fetch('/schedule')
+    .then(function (response) {
+        return response.json();
+    })
+    .then(function (data) {
+        update_output(data);
+    })
+    .catch(function (error) {
+        console.error('Error in GET /schedule:', error);
+    });
+}
+
+function update_output(schedule) {
+    let block = document.querySelector('.schedule-wrap');
+    console.log(schedule);
+    let html = '<p>Description of evaluation:</p>';
+    html += '<p>The table below shows the calculated shifts.</p>';
+    html += '<p>The list of cleaners, where each cleaner has its skill list is used to fill ' +
+        'in the shift slots, where each slot is assigned a location, time and also a list of ' +
+        'required skills for that cleaning task.</p>';
+    html += '<p>The hard constraint is that all slots are filled in by cleaners with the ' +
+        'corresponding skills (but cleaners may have more skills than requried).</p>';
+    html += '<p>The status of calculation is ' + schedule.solver_status + '.</p>';
+    html += '<p>The score is ' + schedule.score + '.</p>';
+    html += '<p>In small font in the table, is also shown the list of the ' +
+        'skills of the cleaner.</p>';
+    html += '<p>Days are separated with a blue line.</p>';
+
+    html += '<table class="schedule"><thead><tr>';
+    html += '<th class="number">#</th><th>Name</th><th class="skills">Skills</th>';
+    html += '<th>Location</th><th>Start</th><th>End</th>';
+    html += '</tr></thead><tbody>';
+    let no = 1;
+    let previous_date = '';
+    for (let shift of schedule.shift_list) {
+        html += '<tr>';
+        html += '<td class="number">' + no + '</td>';
+        html += '<td>' + esc(shift.cleaner.name) + '</td>';
+        html += '<td class="skills">' + esc(shift.required_skill);
+        html += '<span class="skillset">' + esc(shift.cleaner.skill_set.join(', ')) + '</span></td>';
+        html += '<td>' + esc(shift.location) + '</td>';
+        html += '<td>' + format_time(shift.start) + '</td>';
+        html += '<td>' + format_time(shift.end) + '</td>';
+        html += '</tr>';
+
+        let date_only = get_date(shift.start);
+        if (previous_date != '' && previous_date != date_only) {
+            html += '<tr class="separator"><td colspan="6"></td></tr>';
+        }
+        previous_date = date_only;
+
+        no++;
+    }
+    html += '</tbody></table>';
+    block.innerHTML = html;
+}
+
+function format_time(s) {
+    return s.replace('T', ' &nbsp; ');
+}
+
+function get_date(s) {
+    let p = s.split('T');
+    return p[0];
+}
+
+function esc(str) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '`': '&#96;'
+    };
+    return str.replace(/[&<>"'`]/g, function (char) {
+        return map[char];
+    });
+}
+</script>
+</body>
+</html>

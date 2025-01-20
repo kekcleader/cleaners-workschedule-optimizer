@@ -37,7 +37,7 @@ MORNING_SHIFT_START_TIME = datetime.time(hour=6)
 DAY_SHIFT_START_TIME = datetime.time(hour=9)
 AFTERNOON_SHIFT_START_TIME = datetime.time(hour=14)
 NIGHT_SHIFT_START_TIME = datetime.time(hour=22)
-INITIAL_ROSTER_LENGTH_IN_DAYS = 10
+INITIAL_ROSTER_LENGTH_IN_DAYS = 40
 
 SHIFT_START_TIME_COMBOS = (
     (MORNING_SHIFT_START_TIME, AFTERNOON_SHIFT_START_TIME),
@@ -69,8 +69,9 @@ def generate_demo_data():
     name_permutations = join_all_combinations(FIRST_NAMES, LAST_NAMES)
     random.shuffle(name_permutations)
 
+    nofcleaners = INITIAL_ROSTER_LENGTH_IN_DAYS * 3 + 10
     cleaner_list = []
-    for i in range(16):
+    for i in range(nofcleaners):
         skills = pick_subset(OPTIONAL_SKILLS, random, 1, 3)
         skills.append(pick_random(REQUIRED_SKILLS, random))
         cleaner = Cleaner()
